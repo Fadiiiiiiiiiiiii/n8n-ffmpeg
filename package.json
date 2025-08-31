@@ -1,0 +1,8 @@
+{
+  "name": "n8n-ffmpeg-api",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.6"
+  }
+}
