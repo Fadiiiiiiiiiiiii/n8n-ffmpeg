@@ -35,9 +35,7 @@ function followRedirect(location) {
 // Télécharge un fichier (HTTP/HTTPS) avec suivi des redirections
 function downloadFile(url, destPath, redirects = 0) {
   return new Promise((resolve, reject) => {
-    if (redirects > MAX_REDIRECTS) {
-      return reject(new Error("Too many redirects"));
-    }
+    if (redirects > MAX_REDIRECTS) return reject(new Error("Too many redirects"));
     const client = url.startsWith("https") ? https : http;
     const file = fs.createWriteStream(destPath);
     const req = client.get(url, (res) => {
@@ -97,10 +95,12 @@ app.post("/slowmo", async (req, res) => {
       "-loop", "1",
       "-i", inputPath,
       "-t", String(duration),
+      "-r", String(fps),               // fréquence images
       "-c:v", "libx264",
       "-pix_fmt", "yuv420p",
-      "-vf", `scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=${fps}`,
+      "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", // dimensions paires
       "-movflags", "+faststart",
+      "-shortest",                      // termine proprement la vidéo
       outputPath
     ];
 
