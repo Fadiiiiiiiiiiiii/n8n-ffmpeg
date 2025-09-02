@@ -92,15 +92,14 @@ app.post("/slowmo", async (req, res) => {
     // FFmpeg: image -> vidéo MP4
     const args = [
       "-y",
-      "-loop", "1",
+      "-loop", "1",                   // boucle l'image
+      "-framerate", String(fps),      // force un vrai fps
       "-i", inputPath,
-      "-t", String(duration),
-      "-r", String(fps),               // fréquence images
+      "-t", String(duration),         // durée totale
       "-c:v", "libx264",
       "-pix_fmt", "yuv420p",
       "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", // dimensions paires
       "-movflags", "+faststart",
-      "-shortest",                      // termine proprement la vidéo
       outputPath
     ];
 
