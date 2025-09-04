@@ -118,9 +118,7 @@ app.post("/slowmo", async (req, res) => {
         cleanup();
         return res.status(500).send(`FFmpeg failed (code ${code}). ${ffmpegErr}`);
       }
-      console.log("FFmpeg args:", args.join(" "));
-      console.log("FFmpeg stderr:", ffmpegErr);
-      console.log("Output exists:", fs.existsSync(outputPath));
+
       res.download(outputPath, "image-5s.mp4", (err) => {
         cleanup();
         if (err) console.error("Download error:", err.message);
