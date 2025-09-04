@@ -72,9 +72,12 @@ app.post("/slowmo", async (req, res) => {
   const inputPath = tmpPath("input", "jpg");
   const outputPath = tmpPath("output", "mp4");
 
+  // Nettoyage différé pour éviter les race conditions
   const cleanup = () => {
-    try { fs.existsSync(inputPath) && fs.unlinkSync(inputPath); } catch {}
-    try { fs.existsSync(outputPath) && fs.unlinkSync(outputPath); } catch {}
+    setTimeout(() => {
+      try { fs.existsSync(inputPath) && fs.unlinkSync(inputPath); } catch {}
+      try { fs.existsSync(outputPath) && fs.unlinkSync(outputPath); } catch {}
+    }, 2000);
   };
 
   try {
@@ -82,6 +85,7 @@ app.post("/slowmo", async (req, res) => {
     if (req.body?.url) {
       const imgUrl = String(req.body.url);
       if (!/^https?:\/\//i.test(imgUrl)) return res.status(400).send("Invalid URL");
+      console.log("Downloading image from:", imgUrl);
       await downloadFile(imgUrl, inputPath);
     } else if (req.files?.video) {
       await req.files.video.mv(inputPath);
@@ -89,20 +93,22 @@ app.post("/slowmo", async (req, res) => {
       return res.status(400).send("No image provided (use JSON { url } or form-data 'video')");
     }
 
-    // FFmpeg: image -> vidéo MP4 (portrait 1080x1920, 5s par défaut)
+    // 🔥 ORDRE CORRIGÉ: options d'input AVANT -i pour dupliquer l'image
     const args = [
-      "-y",
-      "-loop", "1",                  // répéter l’image
-      "-i", inputPath,
-      "-t", String(duration),        // durée en secondes
-      "-r", String(fps),             // images/seconde
+      "-y",                           // overwrite output
+      "-loop", "1",                   // ✅ AVANT -i : répéter l'image indéfiniment
+      "-framerate", String(fps),      // ✅ AVANT -i : framerate d'entrée (30 fps = 30 copies/sec)
+      "-i", inputPath,                // fichier d'entrée (ton image unique)
+      "-t", String(duration),         // durée de sortie (5s = arrêter après 5 secondes)
       "-vf",
       "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black",
-      "-c:v", "libx264",
-      "-pix_fmt", "yuv420p",
-      "-movflags", "+faststart",
+      "-c:v", "libx264",              // codec vidéo H.264
+      "-pix_fmt", "yuv420p",          // format pixel pour compatibilité Instagram/TikTok
+      "-movflags", "+faststart",      // optimisation streaming
       outputPath
     ];
+
+    console.log("FFmpeg command:", args.join(" "));
 
     const ff = spawn("ffmpeg", args, { stdio: ["ignore", "pipe", "pipe"] });
 
@@ -112,13 +118,27 @@ app.post("/slowmo", async (req, res) => {
     ff.stderr.on("data", (d) => ffmpegErr += d.toString());
 
     ff.on("error", (err) => {
+      console.error("FFmpeg spawn error:", err);
       cleanup();
       return res.status(500).send(`FFmpeg spawn error: ${err.message}`);
     });
 
     ff.on("close", (code) => {
+      console.log("FFmpeg exit code:", code);
       console.log("FFmpeg stdout:", ffmpegOut);
       console.error("FFmpeg stderr:", ffmpegErr);
+      console.log("Output file exists:", fs.existsSync(outputPath));
+      
+      if (fs.existsSync(outputPath)) {
+        const stats = fs.statSync(outputPath);
+        console.log("Output file size:", stats.size, "bytes");
+        
+        // Vérifier que le fichier n'est pas vide
+        if (stats.size === 0) {
+          cleanup();
+          return res.status(500).send("Generated video file is empty");
+        }
+      }
 
       if (code !== 0 || !fs.existsSync(outputPath)) {
         cleanup();
@@ -128,10 +148,12 @@ app.post("/slowmo", async (req, res) => {
       res.download(outputPath, "image-video.mp4", (err) => {
         cleanup();
         if (err) console.error("Download error:", err.message);
+        else console.log("Video sent successfully");
       });
     });
 
   } catch (e) {
+    console.error("Processing error:", e);
     cleanup();
     return res.status(500).send(e.message || "Processing error");
   }
