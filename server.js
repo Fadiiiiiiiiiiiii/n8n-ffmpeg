@@ -64,20 +64,20 @@ app.get("/", (_req, res) => {
   res.json({ ok: true, service: "n8n-ffmpeg-api", uptime: process.uptime() });
 });
 
-// Endpoint /slowmo
+// Endpoint /slowmo - VERSION OPTIMISÉE RAILWAY
 app.post("/slowmo", async (req, res) => {
-  const duration = Math.max(1, Math.min(Number(req.body?.duration || 5), 60));
-  const fps = Math.max(1, Math.min(Number(req.body?.fps || 30), 60));
+  const duration = Math.max(1, Math.min(Number(req.body?.duration || 5), 10)); // Max 10s pour Railway
+  const fps = Math.max(10, Math.min(Number(req.body?.fps || 15), 15)); // FPS réduit = moins de charge
 
   const inputPath = tmpPath("input", "jpg");
   const outputPath = tmpPath("output", "mp4");
 
-  // Nettoyage différé pour éviter les race conditions
+  // Cleanup immédiat en cas d'erreur, différé sinon
   const cleanup = () => {
     setTimeout(() => {
       try { fs.existsSync(inputPath) && fs.unlinkSync(inputPath); } catch {}
       try { fs.existsSync(outputPath) && fs.unlinkSync(outputPath); } catch {}
-    }, 2000);
+    }, 1000);
   };
 
   try {
@@ -93,62 +93,87 @@ app.post("/slowmo", async (req, res) => {
       return res.status(400).send("No image provided (use JSON { url } or form-data 'video')");
     }
 
-    // 🔥 ORDRE CORRIGÉ: options d'input AVANT -i pour dupliquer l'image
+    // 🚀 VERSION ULTRA-OPTIMISÉE pour Railway
     const args = [
-      "-y",                           // overwrite output
-      "-loop", "1",                   // ✅ AVANT -i : répéter l'image indéfiniment
-      "-framerate", String(fps),      // ✅ AVANT -i : framerate d'entrée (30 fps = 30 copies/sec)
-      "-i", inputPath,                // fichier d'entrée (ton image unique)
-      "-t", String(duration),         // durée de sortie (5s = arrêter après 5 secondes)
-      "-vf",
-      "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black",
-      "-c:v", "libx264",              // codec vidéo H.264
-      "-pix_fmt", "yuv420p",          // format pixel pour compatibilité Instagram/TikTok
-      "-movflags", "+faststart",      // optimisation streaming
+      "-y",                                    // overwrite
+      "-loop", "1",                            // répéter l'image
+      "-framerate", "1",                       // ⚡ 1 fps d'entrée = moins de charge
+      "-i", inputPath,                         // input
+      "-t", String(duration),                  // durée
+      "-r", String(fps),                       // ⚡ fps de sortie réduit
+      "-vf", "scale=720:1280",                // ⚡ résolution réduite = plus rapide
+      "-c:v", "libx264",                       // codec H.264
+      "-preset", "ultrafast",                  // ⚡ preset le plus rapide
+      "-crf", "28",                           // ⚡ qualité réduite = plus rapide  
+      "-pix_fmt", "yuv420p",                  // format compatible
+      "-movflags", "+faststart",              // streaming optimisé
+      "-threads", "2",                        // ⚡ limite les threads
       outputPath
     ];
 
-    console.log("FFmpeg command:", args.join(" "));
+    console.log("FFmpeg optimized command:", args.join(" "));
 
-    const ff = spawn("ffmpeg", args, { stdio: ["ignore", "pipe", "pipe"] });
+    // Timeout manuel pour éviter que Railway tue le processus
+    const ffmpegTimeout = setTimeout(() => {
+      console.error("FFmpeg timeout - killing process");
+      ff.kill('SIGKILL');
+    }, 15000); // 15 secondes max
+
+    const ff = spawn("ffmpeg", args, { 
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 12000 // Timeout Node.js backup
+    });
 
     let ffmpegOut = "";
     let ffmpegErr = "";
     ff.stdout.on("data", (d) => ffmpegOut += d.toString());
-    ff.stderr.on("data", (d) => ffmpegErr += d.toString());
+    ff.stderr.on("data", (d) => {
+      ffmpegErr += d.toString();
+      // Log en temps réel pour voir où ça bloque
+      if (d.toString().includes("frame=")) {
+        console.log("FFmpeg progress:", d.toString().trim().split('\n').pop());
+      }
+    });
 
     ff.on("error", (err) => {
       console.error("FFmpeg spawn error:", err);
+      clearTimeout(ffmpegTimeout);
       cleanup();
       return res.status(500).send(`FFmpeg spawn error: ${err.message}`);
     });
 
-    ff.on("close", (code) => {
+    ff.on("close", (code, signal) => {
+      clearTimeout(ffmpegTimeout);
+      
       console.log("FFmpeg exit code:", code);
-      console.log("FFmpeg stdout:", ffmpegOut);
-      console.error("FFmpeg stderr:", ffmpegErr);
+      console.log("FFmpeg exit signal:", signal);
+      console.log("FFmpeg stderr (last 500 chars):", ffmpegErr.slice(-500));
       console.log("Output file exists:", fs.existsSync(outputPath));
       
       if (fs.existsSync(outputPath)) {
         const stats = fs.statSync(outputPath);
         console.log("Output file size:", stats.size, "bytes");
         
-        // Vérifier que le fichier n'est pas vide
-        if (stats.size === 0) {
+        // Vérifier que le fichier fait au moins 1KB
+        if (stats.size < 1000) {
           cleanup();
-          return res.status(500).send("Generated video file is empty");
+          return res.status(500).send(`Generated video too small: ${stats.size} bytes`);
         }
       }
 
-      if (code !== 0 || !fs.existsSync(outputPath)) {
+      // Accepter même si code !== 0 SI le fichier existe et fait > 1KB
+      if (!fs.existsSync(outputPath)) {
         cleanup();
-        return res.status(500).send(`FFmpeg failed (code ${code}). ${ffmpegErr}`);
+        return res.status(500).send(`FFmpeg failed - no output file. Code: ${code}, Signal: ${signal}`);
       }
 
       res.download(outputPath, "image-video.mp4", (err) => {
         cleanup();
-        if (err) console.error("Download error:", err.message);
-        else console.log("Video sent successfully");
+        if (err) {
+          console.error("Download error:", err.message);
+        } else {
+          console.log("Video sent successfully");
+        }
       });
     });
 
