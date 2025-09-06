@@ -66,7 +66,7 @@ app.get("/", (_req, res) => {
 
 // Endpoint /slowmo - VERSION OPTIMISÉE RAILWAY
 app.post("/slowmo", async (req, res) => {
-  const duration = Math.max(1, Math.min(Number(req.body?.duration || 5), 15)); // Max 15s
+  const duration = Math.max(1, Math.min(Number(req.body?.duration || 15), 15)); // Max 15s
   const fps = Math.max(10, Math.min(Number(req.body?.fps || 15), 15)); // FPS réduit = moins de charge
 
   const inputPath = tmpPath("input", "jpg");
