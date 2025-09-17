@@ -15,9 +15,18 @@ app.use(fileUpload());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Servir les fichiers statiques depuis le dossier public
+app.use('/public', express.static('public'));
+
 // Utils
 const TMP_DIR = "/tmp";
+const PUBLIC_DIR = path.join(process.cwd(), "public");
 const MAX_REDIRECTS = 5;
+
+// Créer le dossier public s'il n'existe pas
+if (!fs.existsSync(PUBLIC_DIR)) {
+  fs.mkdirSync(PUBLIC_DIR, { recursive: true });
+}
 
 // Répertoire des musiques
 const AUDIO_DIR = path.join(process.cwd(), "audios");
@@ -26,6 +35,11 @@ const AUDIO_FILES = ["1(15).mp3", "2(15).mp3", "3(15).mp3", "4(15).mp3"];
 function tmpPath(prefix, ext) {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   return path.join(TMP_DIR, `${prefix}-${id}.${ext}`);
+}
+
+function publicPath(prefix, ext) {
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return path.join(PUBLIC_DIR, `${prefix}-${id}.${ext}`);
 }
 
 function followRedirect(location) {
@@ -72,15 +86,18 @@ app.get("/", (_req, res) => {
 app.post("/slowmo", async (req, res) => {
   const duration = Math.max(1, Math.min(Number(req.body?.duration || 15), 15)); // Max 15s
   const fps = Math.max(10, Math.min(Number(req.body?.fps || 15), 15)); // FPS réduit = moins de charge
+  const returnUrl = req.body?.returnUrl === true; // Nouveau paramètre
 
   const inputPath = tmpPath("input", "jpg");
-  const outputPath = tmpPath("output", "mp4");
+  const outputPath = returnUrl ? publicPath("video", "mp4") : tmpPath("output", "mp4");
 
   // Cleanup immédiat en cas d'erreur, différé sinon
   const cleanup = () => {
     setTimeout(() => {
       try { fs.existsSync(inputPath) && fs.unlinkSync(inputPath); } catch {}
-      try { fs.existsSync(outputPath) && fs.unlinkSync(outputPath); } catch {}
+      if (!returnUrl) {
+        try { fs.existsSync(outputPath) && fs.unlinkSync(outputPath); } catch {}
+      }
     }, 1000);
   };
 
@@ -176,14 +193,27 @@ app.post("/slowmo", async (req, res) => {
         return res.status(500).send(`FFmpeg failed - no output file. Code: ${code}, Signal: ${signal}`);
       }
 
-      res.download(outputPath, "image-video.mp4", (err) => {
+      // Nouveau: retourner URL ou téléchargement selon le paramètre
+      if (returnUrl) {
+        const filename = path.basename(outputPath);
+        const publicUrl = `${req.protocol}://${req.get('host')}/public/${filename}`;
         cleanup();
-        if (err) {
-          console.error("Download error:", err.message);
-        } else {
-          console.log("Video sent successfully");
-        }
-      });
+        return res.json({ 
+          success: true,
+          url: publicUrl,
+          size: fs.statSync(outputPath).size,
+          duration: duration
+        });
+      } else {
+        res.download(outputPath, "image-video.mp4", (err) => {
+          cleanup();
+          if (err) {
+            console.error("Download error:", err.message);
+          } else {
+            console.log("Video sent successfully");
+          }
+        });
+      }
     });
 
   } catch (e) {
