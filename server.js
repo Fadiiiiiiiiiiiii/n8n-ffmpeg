@@ -196,7 +196,7 @@ app.post("/slowmo", async (req, res) => {
       // Nouveau: retourner URL ou téléchargement selon le paramètre
       if (returnUrl) {
         const filename = path.basename(outputPath);
-        const publicUrl = `${req.protocol}://${req.get('host')}/public/${filename}`;
+        const publicUrl = `https://${req.get('host')}/public/${filename}`;
         cleanup();
         return res.json({ 
           success: true,
