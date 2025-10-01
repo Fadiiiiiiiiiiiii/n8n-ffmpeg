@@ -1,40 +1,44 @@
 import express from "express";
 import fileUpload from "express-fileupload";
 import sharp from "sharp";
+import fetch from "node-fetch"; // npm install node-fetch
 
 const app = express();
 app.use(fileUpload());
+app.use(express.json());
 
-// Endpoint /check pour vérifier si l’image est valide
 app.post("/check", async (req, res) => {
-  if (!req.files || !req.files.image) {
-    return res.status(400).json({ ok: false, message: "Aucune image fournie (form-data: image)" });
-  }
+  let imageBuffer;
 
-  const imageFile = req.files.image;
   try {
-    // Lire les métadonnées avec sharp
-    const metadata = await sharp(imageFile.data).metadata();
-    const { width, height } = metadata;
+    if (req.files?.image) {
+      // Cas upload direct
+      imageBuffer = req.files.image.data;
+    } else if (req.body?.url) {
+      // Cas JSON avec { url }
+      const response = await fetch(req.body.url);
+      if (!response.ok) throw new Error("Impossible de télécharger l'image");
+      imageBuffer = Buffer.from(await response.arrayBuffer());
+    } else {
+      return res.status(400).json({ ok: false, message: "Aucune image fournie (upload ou url)" });
+    }
 
+    // Lire dimensions
+    const metadata = await sharp(imageBuffer).metadata();
+    const { width, height } = metadata;
     if (!width || !height) {
       return res.status(400).json({ ok: false, message: "Impossible de lire la taille de l'image" });
     }
 
     const ratio = width / height;
+    const valid = ratio >= 1.3 && ratio <= 2.5;
 
-    // Vérification : ratio entre 1.3 et 2.5
-    if (ratio >= 1.3 && ratio <= 2.5) {
-      return res.json({ ok: true, width, height, ratio: ratio.toFixed(2), valid: true });
-    } else {
-      return res.json({ ok: true, width, height, ratio: ratio.toFixed(2), valid: false });
-    }
+    return res.json({ ok: true, width, height, ratio: ratio.toFixed(2), valid });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ ok: false, message: "Erreur lors de l'analyse de l'image" });
+    return res.status(500).json({ ok: false, message: err.message });
   }
 });
 
-// Lancer le serveur
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ Image service running on port ${PORT}`));
