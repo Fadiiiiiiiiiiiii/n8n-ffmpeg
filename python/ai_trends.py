@@ -2,8 +2,6 @@
 # Author: Fadi + ChatGPT (2025)
 # Description: Replicates Google Trends "related queries to AI" logic using SerpApi + semantic scoring
 
-rzevgjerhfvuyerfhvureuyhhuze
-
 
 from serpapi import GoogleSearch
 from sentence_transformers import SentenceTransformer, util
@@ -14,6 +12,7 @@ import time
 import json
 from tqdm import tqdm
 import os
+
 
 # ========== CONFIGURATION ==========
 FAST_REFRESH = True  # ⚡ Mode rapide sans analyse d'articles
@@ -34,7 +33,7 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Vecteur de référence “Intelligence Artificielle”
 ai_reference = model.encode(
-    "artificial intelligence, machine learning, neural networks, LLM, ChatGPT, GPT, OpenAI, DeepMind, Stability AI, Mistral AI, Anthropic, AI model, AI research"
+    "artificial intelligence, machine learning, neural networks, LLM, ChatGPT, GPT, OpenAI, DeepMind, Stability AI, Mistral AI, Anthropic, AI model, AI research, Robot"
 )
 
 # ========== FONCTIONS ==========
@@ -114,30 +113,17 @@ df = pd.DataFrame(all_trends).drop_duplicates(subset="query").reset_index(drop=T
 
 print(f"🔎 Total unique trends: {len(df)}")
 
-# Analyse contextuelle
-semantic_scores = []
-# Analyse contextuelle (FASTREFRESH)
-semantic_scores = []
+# 🧹 Pré-filtrage des mots blacklistés
+df = df[~df["query"].str.lower().apply(is_blacklisted)].reset_index(drop=True)
 
-for i, row in tqdm(df.iterrows(), total=len(df), desc="Analyzing context"):
-    # ⚡ Si mode rapide → analyse uniquement la requête elle-même
-    if FAST_REFRESH:
-        text_to_analyze = row["query"]
-    else:
-        text_to_analyze = fetch_news_snippets(row["news_link"]) or row["query"]
+# ⚡ Analyse sémantique optimisée (vectorisée)
+print("⚡ Computing semantic similarity (batched)...")
+texts = df["query"].tolist()
+embeddings = model.encode(texts, batch_size=64, show_progress_bar=True)
+scores = util.cos_sim(ai_reference, embeddings).flatten().tolist()
+df["semantic_score"] = scores
+print("✅ Semantic scoring completed!")
 
-    if is_blacklisted(text_to_analyze):
-        semantic_scores.append(0)
-        continue
-
-    semantic_scores.append(semantic_score(text_to_analyze))
-
-    # ⏸️ Supprimer le time.sleep si FAST_REFRESH
-    if not FAST_REFRESH:
-        time.sleep(1.5)
-
-
-df["semantic_score"] = semantic_scores
 
 # Heuristique de “fraîcheur” (growth_score)
 df["growth_score"] = np.where(df["search_volume"] > 50000, 1,
