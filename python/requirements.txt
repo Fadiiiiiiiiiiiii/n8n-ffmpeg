@@ -1,0 +1,6 @@
+serpapi==0.1.5
+sentence-transformers==3.0.1
+torch>=2.1.0
+pandas
+numpy
+tqdm
