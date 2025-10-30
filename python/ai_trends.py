@@ -2,7 +2,7 @@
 # Author: Fadi + ChatGPT (2025)
 # Description: Replicates Google Trends "related queries to AI" logic using SerpApi + semantic scoring
 
-from serpapi.google_search_results import GoogleSearch
+from google_search_results import GoogleSearch
 from sentence_transformers import SentenceTransformer, util
 from datetime import datetime, timedelta
 import numpy as np
