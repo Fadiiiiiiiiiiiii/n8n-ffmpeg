@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 @app.route("/run_trends")
 def run_trends():
-    # Exécute ton script principal
+    # Exécute ton script principa
     subprocess.run(["python", "ai_trends.py"])
     # Retourne le JSON généré
     return send_file("ai_trends_7days.json", mimetype="application/json")
