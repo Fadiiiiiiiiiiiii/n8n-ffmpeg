@@ -1,4 +1,4 @@
-git+https://github.com/serpapi/google-search-results-python.git
+google-search-results==2.4.2
 sentence-transformers==3.0.1
 torch>=2.1.0
 pandas
