@@ -3,12 +3,15 @@ import subprocess
 
 app = Flask(__name__)
 
-@app.route("/run_trends")
+@app.route("/run_trends", methods=["GET"])
 def run_trends():
-    # Exécute ton script principa
+    # Lance ton script Python
     subprocess.run(["python", "ai_trends.py"])
-    # Retourne le JSON généré
+    # Renvoie le JSON généré
     return send_file("ai_trends_7days.json", mimetype="application/json")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    # 🔥 Obligatoire : Railway te donne le port via la variable d’environnement PORT
+    import os
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
