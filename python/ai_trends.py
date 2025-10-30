@@ -10,10 +10,11 @@ import pandas as pd
 import time
 import json
 from tqdm import tqdm
+import os
 
 # ========== CONFIGURATION ==========
 FAST_REFRESH = True  # ⚡ Mode rapide sans analyse d'articles
-API_KEY = "1cbfeb224230b881918edcc85ecc545ad32a53a9bde067c5ca58f9a4ac26f9ff"  # <-- Remplace ici
+API_KEY = os.getenv("SERPAPI_KEY")
 GEO_LIST = ["US", "GB", "FR", "IN", "JP", "AU"]  # zones géographiques à agréger
 TIME_WINDOW_HOURS = 168  # 7 jours
 TOP_N = 10
