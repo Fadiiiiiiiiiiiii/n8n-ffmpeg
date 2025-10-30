@@ -1,1 +1,1 @@
-worker: python ai_trends.py
+web: python server.py
