@@ -5,8 +5,4 @@ pandas
 numpy
 tqdm
 Flask==3.0.3
-google-api-python-client
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
 boto3
