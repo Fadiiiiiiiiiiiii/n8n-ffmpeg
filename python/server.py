@@ -2,11 +2,9 @@ from flask import Flask, send_file, jsonify
 import subprocess
 import threading
 import os
-from google_drive_uploader import upload_to_drive
 
 app = Flask(__name__)
 
-FOLDER_ID = "1yq1fpOoWSmhUqsUkEGt7G1jaW0DZ7N0G"
 
 def run_trends_script():
     subprocess.run(["python", "ai_trends.py"])
@@ -21,12 +19,8 @@ def run_trends():
 def get_results():
     if os.path.exists("ai_trends_7days.json"):
 
-        # Upload Google Drive
-        url = upload_to_drive(FOLDER_ID, "ai_trends_7days.json", "ai_trends_7days.json")
-
         return jsonify({
             "status": "done",
-            "drive_url": url
         })
     else:
         return jsonify({"status": "pending", "message": "File not ready yet."})
