@@ -1,10 +1,9 @@
-from flask import Flask, send_file, jsonify
+from flask import Flask, jsonify
 import subprocess
 import threading
 import os
 
 app = Flask(__name__)
-
 
 def run_trends_script():
     subprocess.run(["python", "ai_trends.py"])
@@ -13,17 +12,18 @@ def run_trends_script():
 def run_trends():
     thread = threading.Thread(target=run_trends_script)
     thread.start()
-    return jsonify({"status": "processing", "message": "AI trends analysis started."})
+    return jsonify({
+        "status": "processing",
+        "message": "AI trends analysis started"
+    })
 
 @app.route("/get_results", methods=["GET"])
 def get_results():
-    if os.path.exists("ai_trends_7days.json"):
-
-        return jsonify({
-            "status": "done",
-        })
-    else:
-        return jsonify({"status": "pending", "message": "File not ready yet."})
+    public_url = os.getenv("R2_PUBLIC_URL") + "/ai_trends_7days.json"
+    return jsonify({
+        "status": "done",
+        "url": public_url
+    })
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
