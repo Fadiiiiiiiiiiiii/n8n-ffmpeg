@@ -1,7 +1,4 @@
 # === AI TREND DETECTOR — Google Trends Requêtes Associées Clone ===
-# Author: Fadi + ChatGPT (2025)
-# Description: Replicates Google Trends "related queries to AI" logic using SerpApi + semantic scoring
-
 
 from serpapi import GoogleSearch
 from sentence_transformers import SentenceTransformer, util
@@ -12,10 +9,11 @@ import time
 import json
 from tqdm import tqdm
 import os
+from r2_uploader import upload_to_r2
 
 
 # ========== CONFIGURATION ==========
-FAST_REFRESH = True  # ⚡ Mode rapide sans analyse d'articles
+FAST_REFRESH = True  # Mode rapide sans analyse d'articles
 API_KEY = os.getenv("SERPAPI_KEY")
 GEO_LIST = ["US", "GB", "FR", "IN", "JP", "AU"]  # zones géographiques à agréger
 TIME_WINDOW_HOURS = 168  # 7 jours
@@ -28,7 +26,7 @@ BLACKLIST = [
 ]
 
 # Initialisation du modèle sémantique (embeddings)
-print("🧠 Loading semantic model (sentence-transformers)...")
+print("Loading semantic model (sentence-transformers)...")
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Vecteur de référence “Intelligence Artificielle”
@@ -50,7 +48,7 @@ def fetch_trends(geo):
         results = GoogleSearch(params).get_dict()
         return results.get("trending_searches", [])
     except Exception as e:
-        print(f"⚠️ Erreur API pour {geo}: {e}")
+        print(f"Erreur API pour {geo}: {e}")
         return []
 
 def fetch_news_snippets(news_endpoint):
@@ -91,12 +89,12 @@ def is_blacklisted(text):
 
 # ========== PIPELINE PRINCIPAL ==========
 
-print("🌍 Fetching global AI trends...")
+print("Fetching global AI trends...")
 
 all_trends = []
 for geo in GEO_LIST:
     trends = fetch_trends(geo)
-    print(f"✅ {geo}: {len(trends)} trends récupérées")
+    print(f"{geo}: {len(trends)} trends récupérées")
     for t in trends:
         query = t.get("query", "")
         if not query or is_blacklisted(query):
@@ -111,18 +109,18 @@ for geo in GEO_LIST:
 # Déduplication par query
 df = pd.DataFrame(all_trends).drop_duplicates(subset="query").reset_index(drop=True)
 
-print(f"🔎 Total unique trends: {len(df)}")
+print(f"Total unique trends: {len(df)}")
 
-# 🧹 Pré-filtrage des mots blacklistés
+# Pré-filtrage des mots blacklistés
 df = df[~df["query"].str.lower().apply(is_blacklisted)].reset_index(drop=True)
 
-# ⚡ Analyse sémantique optimisée (vectorisée)
-print("⚡ Computing semantic similarity (batched)...")
+# Analyse sémantique optimisée (vectorisée)
+print("Computing semantic similarity (batched)...")
 texts = df["query"].tolist()
 embeddings = model.encode(texts, batch_size=64, show_progress_bar=True)
 scores = util.cos_sim(ai_reference, embeddings).flatten().tolist()
 df["semantic_score"] = scores
-print("✅ Semantic scoring completed!")
+print("Semantic scoring completed!")
 
 
 # Heuristique de “fraîcheur” (growth_score)
@@ -149,11 +147,20 @@ df = df[df["sem_norm"] >= 0.35].sort_values("score_final", ascending=False)
 top10 = df.head(TOP_N)
 
 # Affichage final
-print("\n🔥 TOP 10 — Global AI Buzz (7 derniers jours)")
+print("\nTOP 10 — Global AI Buzz (7 derniers jours)")
 for i, row in enumerate(top10.itertuples(), 1):
     print(f"{i}. {row.query}")
-    print(f"   🌎 {row.geo} | 📊 Vol: {row.search_volume} | 🧠 IA score: {row.semantic_score:.2f} | ⭐ Final: {row.score_final:.2f}")
+    print(f"   {row.geo} | Vol: {row.search_volume} | IA score: {row.semantic_score:.2f} | Final: {row.score_final:.2f}")
 
 # Export JSON (si tu veux le stocker pour n8n)
 top10.to_json("ai_trends_7days.json", orient="records", indent=2)
-print("\n✅ Résultats exportés → ai_trends_7days.json")
+print("JSON generated")
+
+print("☁️ Uploading to Cloudflare R2...")
+public_url = upload_to_r2(
+    "ai_trends_7days.json",
+    "ai_trends_7days.json"
+)
+
+print(f"Public URL: {public_url}")
+
