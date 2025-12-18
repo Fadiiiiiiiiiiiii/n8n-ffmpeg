@@ -11,7 +11,6 @@ from tqdm import tqdm
 import os
 from r2_uploader import upload_to_r2
 
-
 # ========== CONFIGURATION ==========
 FAST_REFRESH = True  # Mode rapide sans analyse d'articles
 API_KEY = os.getenv("SERPAPI_KEY")
@@ -152,11 +151,17 @@ for i, row in enumerate(top10.itertuples(), 1):
     print(f"{i}. {row.query}")
     print(f"   {row.geo} | Vol: {row.search_volume} | IA score: {row.semantic_score:.2f} | Final: {row.score_final:.2f}")
 
-# Export JSON (si tu veux le stocker pour n8n)
-top10.to_json("ai_trends_7days.json", orient="records", indent=2)
-print("JSON generated")
+output = {
+    "generated_at": datetime.utcnow().isoformat() + "Z",
+    "source": "google_trends_serpapi_semantic",
+    "top_10": top10.to_dict(orient="records")
+}
 
-print("☁️ Uploading to Cloudflare R2...")
+with open("ai_trends_7days.json", "w", encoding="utf-8") as f:
+    json.dump(output, f, indent=2, ensure_ascii=False)
+
+print("JSON generated with stable structure")
+
 public_url = upload_to_r2(
     "ai_trends_7days.json",
     "ai_trends_7days.json"
