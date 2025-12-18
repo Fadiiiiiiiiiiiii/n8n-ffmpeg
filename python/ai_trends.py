@@ -133,7 +133,7 @@ df["sem_norm"] = df["semantic_score"]
 df["grow_norm"] = df["growth_score"]
 
 # 🔹 Filtrage par volume minimum (ex: >= 1000 recherches)
-MIN_VOLUME = 1000
+MIN_VOLUME = 10000
 df = df[df["search_volume"] >= MIN_VOLUME]
 
 # Score final
@@ -151,11 +151,18 @@ for i, row in enumerate(top10.itertuples(), 1):
     print(f"{i}. {row.query}")
     print(f"   {row.geo} | Vol: {row.search_volume} | IA score: {row.semantic_score:.2f} | Final: {row.score_final:.2f}")
 
-output = {
-    "generated_at": datetime.utcnow().isoformat() + "Z",
-    "source": "google_trends_serpapi_semantic",
-    "top_10": top10.to_dict(orient="records")
-}
+if top10.empty:
+    output = {
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "source": "google_trends_serpapi_semantic",
+        "top_10": "none"
+    }
+else:
+    output = {
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "source": "google_trends_serpapi_semantic",
+        "top_10": top10.to_dict(orient="records")
+    }
 
 with open("ai_trends_7days.json", "w", encoding="utf-8") as f:
     json.dump(output, f, indent=2, ensure_ascii=False)
@@ -168,4 +175,3 @@ public_url = upload_to_r2(
 )
 
 print(f"Public URL: {public_url}")
-
