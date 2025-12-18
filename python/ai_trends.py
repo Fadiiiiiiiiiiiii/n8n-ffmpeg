@@ -133,7 +133,7 @@ df["sem_norm"] = df["semantic_score"]
 df["grow_norm"] = df["growth_score"]
 
 # 🔹 Filtrage par volume minimum (ex: >= 1000 recherches)
-MIN_VOLUME = 15000
+MIN_VOLUME = 1000
 df = df[df["search_volume"] >= MIN_VOLUME]
 
 # Score final
