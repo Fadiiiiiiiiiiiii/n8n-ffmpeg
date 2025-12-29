@@ -15,7 +15,7 @@ from r2_uploader import upload_to_r2
 FAST_REFRESH = True  # Mode rapide sans analyse d'articles
 API_KEY = os.getenv("SERPAPI_KEY")
 GEO_LIST = ["US", "GB", "FR", "IN", "JP", "AU"]  # zones géographiques à agréger
-TIME_WINDOW_HOURS = 744  # 7 jours
+TIME_WINDOW_HOURS = 168  # 7 jours
 TOP_N = 10
 
 # Mots à exclure (faux positifs typiques)
@@ -133,7 +133,7 @@ df["sem_norm"] = df["semantic_score"]
 df["grow_norm"] = df["growth_score"]
 
 # EX 80000
-MIN_VOLUME = 1000
+MIN_VOLUME = 5000
 df = df[df["search_volume"] >= MIN_VOLUME]
 
 # Score final
