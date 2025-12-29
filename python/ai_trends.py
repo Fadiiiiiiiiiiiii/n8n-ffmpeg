@@ -30,7 +30,7 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Vecteur de référence “Intelligence Artificielle”
 ai_reference = model.encode(
-    "artificial intelligence, machine learning, neural networks, LLM, ChatGPT, GPT, OpenAI, DeepMind, Stability AI, Mistral AI, Anthropic, AI model, AI research, Robot"
+    "artificial intelligence, machine learning, neural networks, LLM, ChatGPT, GPT, OpenAI, DeepMind, Stability AI, Mistral AI, Anthropic, AI model, AI research, Robot, Kling AI, Runway AI, Microsoft AI, Google AI, Meta AI, Luma AI, perplexity AI, Amazon AI"
 )
 
 # ========== FONCTIONS ==========
