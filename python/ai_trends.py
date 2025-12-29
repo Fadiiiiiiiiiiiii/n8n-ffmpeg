@@ -133,7 +133,7 @@ df["sem_norm"] = df["semantic_score"]
 df["grow_norm"] = df["growth_score"]
 
 # EX 80000
-MIN_VOLUME = 5000
+MIN_VOLUME = 1000
 df = df[df["search_volume"] >= MIN_VOLUME]
 
 # Score final
